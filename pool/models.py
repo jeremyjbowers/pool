@@ -6,6 +6,7 @@ from django.contrib.auth.models import User
 from django.core import serializers
 from django.db import models
 import requests
+from twilio.rest import TwilioRestClient
 
 ORGANIZATION_CONTACT_CHOICES = (
     ('e', 'Email'),
@@ -59,6 +60,24 @@ class Organization(TimeStampedMixin):
 
     def __unicode__(self):
         return self.organization_name
+
+    def send_text(self, message):
+        client = TwilioRestClient(
+            os.environ.get('POOL_TWILIO_ACCOUNT_SID', None),
+            os.environ.get('POOL_TWILIO_AUTH_TOKEN', None)
+        )
+
+        if message.get('subject', None):
+            s = client.messages.create(
+                body=message.get('subject', None),
+                to="+1%s" % self.phone_number,
+                from_=os.environ.get('POOL_TWILIO_PHONE_NUMBER', None),
+            )
+        b = client.messages.create(
+                body=message.get('body', None),
+                to="+1%s" % self.phone_number,
+                from_=os.environ.get('POOL_TWILIO_PHONE_NUMBER', None),
+            )
 
     def send_email(self, message):
         return requests.post(
