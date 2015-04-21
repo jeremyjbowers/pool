@@ -66,6 +66,11 @@ class Organization(TimeStampedMixin):
             os.environ.get('POOL_TWILIO_ACCOUNT_SID', None),
             os.environ.get('POOL_TWILIO_AUTH_TOKEN', None)
         )
+        s = client.messages.create(
+            body=message.get('subject', None),
+            to="+1%s" % self.phone_number,
+            from_=os.environ.get('POOL_TWILIO_PHONE_NUMBER', None),
+        )
         b = client.messages.create(
             body=message.get('body', None),
             to="+1%s" % self.phone_number,
@@ -106,7 +111,6 @@ class OrganizationSeat(TimeStampedMixin):
         seat_pool = sorted([s.order for s in OrganizationSeat.objects.filter(seat=self.seat)])
         for idx, seat_order in enumerate(seat_pool):
             if seat_order == self.order:
-                print idx, idx+1, len(seat_pool), seat_pool
                 try:
                     next_organization = seat_pool[idx+1]
                 except IndexError:
@@ -161,7 +165,7 @@ class PoolSpotOffer(TimeStampedMixin):
 
     def make_offer(self):
         message = {}
-        message['subject'] = None
+        message['subject'] = 'Action required: %s pool spot on %s' % (self.pool_spot.seat, self.pool_spot.date)
         message['body'] = 'The %s on %s is available.\n\nAccept: %s\n\nDecline: %s' % (
             self.pool_spot.seat,
             self.pool_spot.date,
