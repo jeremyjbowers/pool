@@ -66,18 +66,11 @@ class Organization(TimeStampedMixin):
             os.environ.get('POOL_TWILIO_ACCOUNT_SID', None),
             os.environ.get('POOL_TWILIO_AUTH_TOKEN', None)
         )
-
-        if message.get('subject', None):
-            s = client.messages.create(
-                body=message.get('subject', None),
-                to="+1%s" % self.phone_number,
-                from_=os.environ.get('POOL_TWILIO_PHONE_NUMBER', None),
-            )
         b = client.messages.create(
-                body=message.get('body', None),
-                to="+1%s" % self.phone_number,
-                from_=os.environ.get('POOL_TWILIO_PHONE_NUMBER', None),
-            )
+            body=message.get('body', None),
+            to="+1%s" % self.phone_number,
+            from_=os.environ.get('POOL_TWILIO_PHONE_NUMBER', None),
+        )
 
     def send_email(self, message):
         return requests.post(
@@ -104,10 +97,22 @@ class OrganizationSeat(TimeStampedMixin):
     order = models.IntegerField()
 
     class Meta:
-        unique_together = ('seat', 'organization', 'order')
+        unique_together = (('seat', 'order'), ('seat', 'organization'))
 
     def __unicode__(self):
         return "%s seat: %s (%s)" % (self.seat, self.organization, self.order)
+
+    def get_next_organization(self):
+        seat_pool = sorted([s.order for s in OrganizationSeat.objects.filter(seat=self.seat)])
+        for idx, seat_order in enumerate(seat_pool):
+            if seat_order == self.order:
+                print idx, idx+1, len(seat_pool), seat_pool
+                try:
+                    next_organization = seat_pool[idx+1]
+                except IndexError:
+                    next_organization = seat_pool[0]
+                return OrganizationSeat.objects.get(seat=self.seat, order=next_organization)
+
 
 
 class PoolSpot(TimeStampedMixin):
@@ -120,8 +125,16 @@ class PoolSpot(TimeStampedMixin):
 
     def __unicode__(self):
         if self.organization:
-            return "%s seat on %s: CLAIMED by %s" % (self.seat, self.date, self.organization)
-        return "%s seat on %s" % (self.seat, self.date)
+            return "%s on %s: CLAIMED by %s" % (self.seat, self.date, self.organization)
+        return "%s on %s" % (self.seat, self.date)
+
+    def remove_accepted_pool_spot(self):
+        return PoolSpotOffer.objects.get(organization=self.organization, pool_spot=self).delete()
+
+    def save(self, *args, **kwargs):
+        if self.organization:
+            self.remove_accepted_pool_spot()
+        super(PoolSpot, self).save(*args, **kwargs)
 
 
 class PoolSpotOffer(TimeStampedMixin):
@@ -133,6 +146,35 @@ class PoolSpotOffer(TimeStampedMixin):
         return "%s offered to %s" % (self.pool_spot, self.organization)
 
     def save(self, *args, **kwargs):
+        self.set_offer_code()
+        super(PoolSpotOffer, self).save(*args, **kwargs)
+
+    def set_offer_code(self):
         if not self.offer_code:
             self.offer_code = str(uuid.uuid4())
-        super(PoolSpotOffer, self).save(*args, **kwargs)
+
+    def get_accept_url(self):
+        return 'http://127.0.0.1:8000/pool/offer/accept/%s/' % self.offer_code
+
+    def get_decline_url(self):
+        return 'http://127.0.0.1:8000/pool/offer/decline/%s/' % self.offer_code
+
+    def make_offer(self):
+        message = {}
+        message['subject'] = None
+        message['body'] = 'The %s on %s is available.\n\nAccept: %s\n\nDecline: %s' % (
+            self.pool_spot.seat,
+            self.pool_spot.date,
+            self.get_accept_url(),
+            self.get_decline_url()
+        )
+        self.organization.send_message(message)
+
+    def generate_next_offer(self):
+        o = OrganizationSeat.objects.get(seat=self.pool_spot.seat, organization=self.organization)
+        next_organization = o.get_next_organization()
+        p = PoolSpotOffer(pool_spot=self.pool_spot, organization=next_organization.organization)
+        p.set_offer_code()
+        self.delete()
+        p.save()
+        p.make_offer()
