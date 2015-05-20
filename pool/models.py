@@ -6,6 +6,7 @@ from dateutil.rrule import *
 from django.contrib.auth.models import User
 from django.core import serializers
 from django.db import models
+from django.conf import settings
 import requests
 from twilio.rest import TwilioRestClient
 
@@ -189,10 +190,10 @@ class PoolSpotOffer(TimeStampedMixin):
             self.offer_code = str(uuid.uuid4())
 
     def get_accept_url(self):
-        return 'http://127.0.0.1:8000/pool/offer/accept/%s/' % self.offer_code
+        return '%s/pool/offer/accept/%s/' % (settings.HOST_NAME, self.offer_code)
 
     def get_decline_url(self):
-        return 'http://127.0.0.1:8000/pool/offer/decline/%s/' % self.offer_code
+        return '%s/pool/offer/decline/%s/' % (settings.HOST_NAME, self.offer_code)
 
     def make_offer(self):
         message = {}
