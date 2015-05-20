@@ -52,6 +52,10 @@ def clone():
     api.run('git clone git@github.com:jeremyjbowers/pool.git /home/ubuntu/%s' % PROJECT_NAME)
 
 @api.task
+def make_virtualenv():
+    api.run('mkvirtualenv pool')
+
+@api.task
 def wsgi():
     api.run('touch /home/ubuntu/%s/config/stg/app.py' % PROJECT_NAME)
 
