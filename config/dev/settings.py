@@ -35,7 +35,7 @@ MIDDLEWARE_CLASSES = (
 
 ROOT_URLCONF = 'urls'
 
-WSGI_APPLICATION = 'config.wsgi.wsgi.application'
+WSGI_APPLICATION = 'config.dev.app.application'
 
 DATABASES = {
     'default': {
