@@ -9,11 +9,6 @@ class Command(BaseCommand):
 
 
     def handle(self, *args, **options):
-        dates = list(set([m.date for m in models.PoolSpot.objects.filter(organization__isnull=True).order_by('date')]))
-        dates = sorted(dates)
-
-        date = dates[0]
-
         for seat in models.Seat.objects.filter(foreign_eligible=True):
             pool_spots = models.PoolSpot.objects.filter(seat=seat, organization__isnull=True, date=date).order_by('date')
 

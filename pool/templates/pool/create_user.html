@@ -1,0 +1,51 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="row">
+<div class="col s12">
+    <h1 style="font-weight:600;width:100%;">Create User</h1>
+</div>
+</div>
+
+<div class="row">
+<div class="input-field col s12">
+  <input value="" id="username" type="text" class="validate">
+  <label class="active" for="username">User Name</label>
+</div>
+<div class="input-field col s12">
+  <input value="" id="email" type="text" class="validate">
+  <label class="active" for="email">Email</label>
+</div>
+<div class="input-field col s12">
+  <input value="" id="password" type="password" class="validate">
+  <label class="active" for="password">Password</label>
+</div>
+</div>
+
+<div class="row">
+<div class="input-field col s12">
+  <input value="" id="first_name" type="text" class="validate">
+  <label class="active" for="first_name">First Name</label>
+</div>
+<div class="input-field col s12">
+  <input value="" id="last_name" type="text" class="validate">
+  <label class="active" for="last_name">Last Name</label>
+</div>
+<div class="input-field col s12">
+  <input value="" id="phone_number" type="text" class="validate">
+  <label class="active" for="phone_number">Phone Number</label>
+</div>
+</div>
+
+<div class="row">
+  <div class="col s6">
+    <label>Browser Select</label>
+    <select class="browser-default">
+      <option value="" disabled selected>Choose your option</option>
+      {% for o in organizations %}
+      <option value="{{ o.id }}">{{ o.organization_name }}</option>
+      {% endfor %}
+    </select>
+  </div>
+</div>
+{% endblock %}

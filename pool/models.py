@@ -77,71 +77,28 @@ class Seat(TimeStampedMixin):
 
 
 class Organization(TimeStampedMixin):
-    organization_name = models.CharField(max_length=255)
+    organization_name = models.CharField(max_length=255, null=True)
     organization_type = models.CharField(choices=ORGANIZATION_TYPE_CHOICES, max_length=255, null=True, blank=True)
-    user = models.OneToOneField(User)
-    phone_number = models.CharField(max_length=255, blank=True, null=True)
-    preferred_contact = models.CharField(choices=ORGANIZATION_CONTACT_CHOICES, max_length=255, default="e")
 
     def __unicode__(self):
         return self.organization_name
 
-    def send_text(self, message):
-        client = TwilioRestClient(
-            os.environ.get('POOL_TWILIO_ACCOUNT_SID', None),
-            os.environ.get('POOL_TWILIO_AUTH_TOKEN', None)
-        )
-        # s = client.messages.create(
-        #     body=message.get('subject', None),
-        #     to="+1%s" % self.phone_number,
-        #     from_=os.environ.get('POOL_TWILIO_PHONE_NUMBER', None),
-        # )
-        b = client.messages.create(
-            body=message.get('body', None),
-            to="+1%s" % self.phone_number,
-            from_=os.environ.get('POOL_TWILIO_PHONE_NUMBER', None),
-        )
-
-    def send_email(self, message):
-        return requests.post(
-            "https://api.mailgun.net/v3/mg.whitehousepool.org/messages",
-            auth=("api", os.environ.get('POOL_MAILGUN_API_KEY', None)),
-            data={"from": "PoolBot <mailgun@mg.whitehousepool.org>",
-                "to": [self.user.email],
-                "subject": message.get('subject', None),
-                "text": message.get('body', None)
-            }
-        )
-
     def send_message(self, message):
         if self.preferred_contact == 'e':
-            self.send_email(message)
+            utils.send_email(self, message)
 
         if self.preferred_contact == 't':
-            self.send_text(message)
+            utils.send_text(self, message)
 
 
-# class OrganizationSeat(TimeStampedMixin):
-#     seat = models.ForeignKey(Seat, null=True)
-#     organization = models.ForeignKey(Organization, null=True)
-#     order = models.IntegerField()
+class OrganizationUser(TimeStampedMixin):
+    organization = models.ForeignKey(Organization)
+    user = models.OneToOneField(User)
+    phone_number = models.CharField(max_length=255, blank=True, null=True)
+    preferred_contact = models.CharField(choices=ORGANIZATION_CONTACT_CHOICES, max_length=255, default="e", null=True)
 
-#     class Meta:
-#         unique_together = (('seat', 'order'), ('seat', 'organization'))
-
-#     def __unicode__(self):
-#         return "%s seat: %s (%s)" % (self.seat, self.organization, self.order)
-
-#     def get_next_organization(self):
-#         seat_pool = sorted([s.order for s in OrganizationSeat.objects.filter(seat=self.seat)])
-#         for idx, seat_order in enumerate(seat_pool):
-#             if seat_order == self.order:
-#                 try:
-#                     next_organization = seat_pool[idx+1]
-#                 except IndexError:
-#                     next_organization = seat_pool[0]
-#                 return OrganizationSeat.objects.get(seat=self.seat, order=next_organization)
-
+    def __unicode__(self):
+        return self.get_full_name()
 
 
 class PoolSpot(TimeStampedMixin):
@@ -149,9 +106,6 @@ class PoolSpot(TimeStampedMixin):
     date = models.DateField()
     organization = models.ForeignKey(Organization, blank=True, null=True)
     trip = models.ForeignKey(Trip, blank=True, null=True)
-
-    class Meta:
-        unique_together = (('seat', 'date'), ('date', 'organization'))
 
     def __unicode__(self):
         if self.organization:
@@ -190,10 +144,10 @@ class PoolSpotOffer(TimeStampedMixin):
             self.offer_code = str(uuid.uuid4())
 
     def get_accept_url(self):
-        return '%s/pool/offer/accept/%s/' % (settings.HOST_NAME, self.offer_code)
+        return '%s/pool/offer/seat/accept/%s/' % (settings.HOST_NAME, self.offer_code)
 
     def get_decline_url(self):
-        return '%s/pool/offer/decline/%s/' % (settings.HOST_NAME, self.offer_code)
+        return '%s/pool/offer/seat/decline/%s/' % (settings.HOST_NAME, self.offer_code)
 
     def make_offer(self):
         message = {}
