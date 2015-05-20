@@ -17,7 +17,6 @@ env.forward_agent = True
 env.branch = "master"
 
 env.hosts = ['127.0.0.1']
-env.dbs = ['127.0.0.1']
 env.settings = None
 
 @api.task
@@ -45,11 +44,10 @@ def branch(branch_name):
 def e(environment):
     env.settings = environment
     env.hosts = ENVIRONMENTS[environment]['hosts']
-    env.dbs = ENVIRONMENTS[environment]['dbs']
 
 @api.task
 def clone():
-    api.run('git clone git@github.com:jeremyjbowers/pool.git /home/ubuntu/%s' % PROJECT_NAME)
+    api.run('git clone git@github.com:jeremyjbowers/pool.git /home/ubuntu/apps/%s' % PROJECT_NAME)
 
 @api.task
 def make_virtualenv():
@@ -57,16 +55,16 @@ def make_virtualenv():
 
 @api.task
 def wsgi():
-    api.run('touch /home/ubuntu/%s/config/stg/app.py' % PROJECT_NAME)
+    api.run('touch /home/ubuntu/apps/%s/config/stg/app.py' % PROJECT_NAME)
 
 @api.task
 def pull():
-    api.run('cd /home/ubuntu/%s; git fetch' % PROJECT_NAME)
-    api.run('cd /home/ubuntu/%s; git pull origin %s' % (PROJECT_NAME, env.branch))
+    api.run('cd /home/ubuntu/apps/%s; git fetch' % PROJECT_NAME)
+    api.run('cd /home/ubuntu/apps/%s; git pull origin %s' % (PROJECT_NAME, env.branch))
 
 @api.task
 def pip_install():
-    api.run('workon %s && pip install -r requirements.txt' % PROJECT_NAME)
+    api.run('workon %s && cd /home/ubuntu/apps/%s && pip install -r requirements.txt' % (PROJECT_NAME, PROJECT_NAME))
 
 @api.task
 def migrate():

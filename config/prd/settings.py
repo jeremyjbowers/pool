@@ -40,8 +40,8 @@ WSGI_APPLICATION = 'config.prd.app.application'
 DATABASES = {
     'default': {
         'ENGINE': 'django.db.backends.postgresql_psycopg2',
-        'NAME': os.environ.get('POOL_DB_NAME', 'pool_dev'),
-        'USER': os.environ.get('POOL_DB_USER', 'pool_dev'),
+        'NAME': os.environ.get('POOL_DB_NAME', 'pool'),
+        'USER': os.environ.get('POOL_DB_USER', 'pool'),
         'PASSWORD': os.environ.get('POOL_DB_PASSWORD', ''),
         'HOST': os.environ.get('POOL_DB_HOST', ''),
     }
