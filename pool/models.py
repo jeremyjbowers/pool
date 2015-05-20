@@ -2,11 +2,14 @@ import json
 import os
 import uuid
 
+from dateutil.rrule import *
 from django.contrib.auth.models import User
 from django.core import serializers
 from django.db import models
 import requests
 from twilio.rest import TwilioRestClient
+
+from pool import utils
 
 ORGANIZATION_CONTACT_CHOICES = (
     ('e', 'Email'),
@@ -44,8 +47,29 @@ class TimeStampedMixin(models.Model):
         return json.dumps(self.dict())
 
 
+class Trip(TimeStampedMixin):
+    location = models.CharField(max_length=255, null=True)
+    description = models.TextField(blank=True, null=True)
+    start_date = models.DateField()
+    end_date = models.DateField()
+
+    def __unicode__(self):
+        return "%s: %s to %s" % (self.location, self.start_date, self.end_date)
+
+    def assign_pool_spots(self):
+        spot_dates = list(rrule(DAILY, dtstart=self.start_date, until=self.end_date))
+        for date in spot_dates:
+            for seat in Seat.objects.all().filter(foreign_eligible=True):
+                obj, created = PoolSpot.objects.update_or_create(seat=seat, date=date)
+
+    def save(self, *args, **kwargs):
+        self.assign_pool_spots()
+        super(Trip, self).save(*args, **kwargs)
+
+
 class Seat(TimeStampedMixin):
     name = models.CharField(max_length=255, null=True, blank=True)
+    foreign_eligible = models.BooleanField(default=False)
 
     def __unicode__(self):
         return "%s seat" % self.name
@@ -66,11 +90,11 @@ class Organization(TimeStampedMixin):
             os.environ.get('POOL_TWILIO_ACCOUNT_SID', None),
             os.environ.get('POOL_TWILIO_AUTH_TOKEN', None)
         )
-        s = client.messages.create(
-            body=message.get('subject', None),
-            to="+1%s" % self.phone_number,
-            from_=os.environ.get('POOL_TWILIO_PHONE_NUMBER', None),
-        )
+        # s = client.messages.create(
+        #     body=message.get('subject', None),
+        #     to="+1%s" % self.phone_number,
+        #     from_=os.environ.get('POOL_TWILIO_PHONE_NUMBER', None),
+        # )
         b = client.messages.create(
             body=message.get('body', None),
             to="+1%s" % self.phone_number,
@@ -96,26 +120,26 @@ class Organization(TimeStampedMixin):
             self.send_text(message)
 
 
-class OrganizationSeat(TimeStampedMixin):
-    seat = models.ForeignKey(Seat, null=True)
-    organization = models.ForeignKey(Organization, null=True)
-    order = models.IntegerField()
+# class OrganizationSeat(TimeStampedMixin):
+#     seat = models.ForeignKey(Seat, null=True)
+#     organization = models.ForeignKey(Organization, null=True)
+#     order = models.IntegerField()
 
-    class Meta:
-        unique_together = (('seat', 'order'), ('seat', 'organization'))
+#     class Meta:
+#         unique_together = (('seat', 'order'), ('seat', 'organization'))
 
-    def __unicode__(self):
-        return "%s seat: %s (%s)" % (self.seat, self.organization, self.order)
+#     def __unicode__(self):
+#         return "%s seat: %s (%s)" % (self.seat, self.organization, self.order)
 
-    def get_next_organization(self):
-        seat_pool = sorted([s.order for s in OrganizationSeat.objects.filter(seat=self.seat)])
-        for idx, seat_order in enumerate(seat_pool):
-            if seat_order == self.order:
-                try:
-                    next_organization = seat_pool[idx+1]
-                except IndexError:
-                    next_organization = seat_pool[0]
-                return OrganizationSeat.objects.get(seat=self.seat, order=next_organization)
+#     def get_next_organization(self):
+#         seat_pool = sorted([s.order for s in OrganizationSeat.objects.filter(seat=self.seat)])
+#         for idx, seat_order in enumerate(seat_pool):
+#             if seat_order == self.order:
+#                 try:
+#                     next_organization = seat_pool[idx+1]
+#                 except IndexError:
+#                     next_organization = seat_pool[0]
+#                 return OrganizationSeat.objects.get(seat=self.seat, order=next_organization)
 
 
 
@@ -123,6 +147,7 @@ class PoolSpot(TimeStampedMixin):
     seat = models.ForeignKey(Seat, null=True)
     date = models.DateField()
     organization = models.ForeignKey(Organization, blank=True, null=True)
+    trip = models.ForeignKey(Trip, blank=True, null=True)
 
     class Meta:
         unique_together = (('seat', 'date'), ('date', 'organization'))
@@ -143,14 +168,20 @@ class PoolSpot(TimeStampedMixin):
 
 class PoolSpotOffer(TimeStampedMixin):
     pool_spot = models.OneToOneField(PoolSpot)
+    date = models.DateField(null=True)
     organization = models.ForeignKey(Organization)
     offer_code = models.CharField(max_length=255, blank=True)
+
+    class Meta:
+        unique_together = [('organization', 'date')]
 
     def __unicode__(self):
         return "%s offered to %s" % (self.pool_spot, self.organization)
 
     def save(self, *args, **kwargs):
         self.set_offer_code()
+        if not self.date:
+            self.date = self.pool_spot.date
         super(PoolSpotOffer, self).save(*args, **kwargs)
 
     def set_offer_code(self):
@@ -174,11 +205,32 @@ class PoolSpotOffer(TimeStampedMixin):
         )
         self.organization.send_message(message)
 
-    def generate_next_offer(self):
-        o = OrganizationSeat.objects.get(seat=self.pool_spot.seat, organization=self.organization)
-        next_organization = o.get_next_organization()
-        p = PoolSpotOffer(pool_spot=self.pool_spot, organization=next_organization.organization)
-        p.set_offer_code()
-        self.delete()
-        p.save()
-        p.make_offer()
+
+class SeatRotation(TimeStampedMixin):
+    seat = models.ForeignKey(Seat)
+    current_spot = models.IntegerField(null=True)
+
+    def __unicode__(self):
+        return "Rotation for %s" % self.seat
+
+    def get_next_organization(self):
+        """
+        Decides which organization should get the next offfer.
+        tk Logic for making sure the same company does not get offers
+        for more than one seat (?).
+        """
+        seat_pool = sorted([s.order for s in OrganizationSeatRotation.objects.filter(seat_rotation=self).order_by('order')])
+        for idx, seat_order in enumerate(seat_pool):
+            if seat_order == self.current_spot:
+                next_organization = utils.increment_seat_order(idx, seat_pool)
+                next_organization = OrganizationSeatRotation.objects.get(seat_rotation=self, order=next_organization)
+                return next_organization, idx, seat_pool
+
+
+class OrganizationSeatRotation(TimeStampedMixin):
+    seat_rotation = models.ForeignKey(SeatRotation)
+    organization = models.ForeignKey(Organization)
+    order = models.IntegerField(null=True)
+
+    def __unicode__(self):
+        return "%s in %s rotation" % (self.organization, self.seat_rotation)

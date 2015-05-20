@@ -20,7 +20,7 @@ def offer_action(request, offer_action, offer_code):
                 offer.pool_spot.date
             )
         if offer_action == "decline":
-            offer.generate_next_offer()
+            offer.delete()
             message = '<h2>%s %s, %s</h2><p>You have declined the pool spot for the %s seat on %s.</p><p>Thank you.</p>' % (
                 offer.organization.user.first_name,
                 offer.organization.user.last_name,
