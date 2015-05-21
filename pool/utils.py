@@ -58,7 +58,7 @@ def send_email(obj, message):
     return requests.post(
         "https://api.mailgun.net/v3/mg.whitehousepool.org/messages",
         auth=("api", os.environ.get('POOL_MAILGUN_API_KEY', None)),
-        data={"from": "PoolBot <mailgun@mg.whitehousepool.org>",
+        data={"from": "Pooler (whitehousepool.org) <mailgun@mg.whitehousepool.org>",
             "to": [obj.user.email],
             "subject": message.get('subject', None),
             "text": message.get('body', None)

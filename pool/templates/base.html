@@ -16,7 +16,16 @@
       <ul class="side-nav" id="mobile-demo">
         <li class="black-text"><a href="#">{{ user.get_full_name }}</a></li>
         <li><a href="/pool/logout/">Log out</a></li>
-      </ul>{% endif %}
+      </ul>
+      {% else %}
+      <a href="#" data-activates="mobile-demo" class="button-collapse"><i class="mdi-navigation-menu"></i></a>
+      <ul class="right hide-on-med-and-down">
+        <li><a href="/pool/user/create/">Sign up</a></li>
+      </ul>
+      <ul class="side-nav" id="mobile-demo">
+        <li><a href="/pool/user/create/">Sign up</a></li>
+      </ul>
+      {% endif %}
     </div>
   </nav>
         

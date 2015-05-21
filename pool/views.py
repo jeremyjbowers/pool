@@ -68,6 +68,13 @@ def verify_user(request, temporary_code):
         u.temporary_code = None
         u.save()
         context['user'] = u
+        message['subject'] = "whitehousepool.org: Welcome!"
+        message['body'] = "Welcome to Pooler at http://whitehousepool.org/, a simple service for handling White House pool seat assignments.\n"
+        message['body'] += "* You can log in here: %s/pool/login/\n" % settings.HOST_NAME
+        message['body'] += "* Frequently-asked questions about Pooler: %s/pool/faq/\n" % settings.HOST_NAME
+        message['body'] += "If you have questions, email jeremy.bowers@nytimes.com or michael.shear@nytimes.com.\n\n"
+        message['body'] += "Thanks, and welcome!"
+        utils.send_email(organization_user, message)
         return render_to_response('pool/verify_user_success.html', context)
     except models.OrganizationUser.DoesNotExist:
 
@@ -147,12 +154,11 @@ def create_user(request):
             return render_to_response('pool/create_user_fail.html', context)
 
         # it worked so return something nice.
-        # should probably send the "are you real" email
         message = {}
         message['subject'] = "whitehousepool.org: Verify your email"
-        message['body'] = "Someone registered an account with http://whitehousepool.org/ from this account<br/>"
-        message['body'] += "If this was you, please click this link to verify your account.<br/>"
-        message['body'] += "<a href='%s/pool/user/verify/%s/'>verify my account</a>" % (settings.HOST_NAME, organization_user.temporary_code)
+        message['body'] = "Someone registered an account with http://whitehousepool.org/ from this account\n"
+        message['body'] += "If this was you, please click this link to verify your account.\n"
+        message['body'] += "%s/pool/user/verify/%s/" % (settings.HOST_NAME, organization_user.temporary_code)
         utils.send_email(organization_user, message)
         return render_to_response('pool/create_user_success.html', context)
 
