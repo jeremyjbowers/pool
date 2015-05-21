@@ -19,11 +19,12 @@ def logout_user(request):
     return redirect('/pool/login/')
 
 @login_required
-def foreign_seat_list(request):
+def foreign_detail(request):
     context = {}
     context['host_name'] = settings.HOST_NAME
     context['user'] = models.OrganizationUser.objects.get(user=request.user)
     context['seats'] = models.Seat.objects.filter(foreign_eligible=True, active=True)
+    context['trips'] = models.Trip.objects.filter(foreign=True)
 
     return render_to_response('pool/foreign_seat_list.html', context) 
 

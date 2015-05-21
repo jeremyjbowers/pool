@@ -65,21 +65,25 @@ class Trip(TimeStampedMixin):
     def __unicode__(self):
         return "%s: %s to %s" % (self.location, self.start_date, self.end_date)
 
+    def pool_spots(self):
+        return PoolSpot.objects.filter(trip=self)
+
     def assign_pool_spots(self):
         if self.foreign:
             spot_dates = list(rrule(DAILY, dtstart=self.start_date, until=self.end_date))
             for date in spot_dates:
                 for seat in Seat.objects.all().filter(foreign_eligible=True):
-                    obj, created = PoolSpot.objects.update_or_create(seat=seat, date=date)
+                    obj, created = PoolSpot.objects.update_or_create(seat=seat, date=date, trip=self)
 
     def save(self, *args, **kwargs):
-        self.assign_pool_spots()
         super(Trip, self).save(*args, **kwargs)
+        self.assign_pool_spots()
 
 
 class Seat(TimeStampedMixin):
     name = models.CharField(max_length=255, null=True, blank=True)
     foreign_eligible = models.BooleanField(default=False)
+    priority = models.IntegerField(default=99)
 
     def __unicode__(self):
         if self.foreign_eligible:
@@ -142,13 +146,25 @@ class PoolSpot(TimeStampedMixin):
     organization = models.ForeignKey(Organization, blank=True, null=True)
     trip = models.ForeignKey(Trip, blank=True, null=True)
 
+    class Meta:
+        ordering = ['seat__priority', 'date']
+
     def __unicode__(self):
         if self.organization:
             return "%s on %s: CLAIMED by %s" % (self.seat, self.date, self.organization)
         return "%s on %s" % (self.seat, self.date)
 
+    def offer(self):
+        p = PoolSpotOffer.objects.filter(pool_spot=self)
+        if p.count() > 0:
+            return p[0]
+        return None
+
     def remove_accepted_pool_spot(self):
-        return PoolSpotOffer.objects.get(organization=self.organization, pool_spot=self).delete()
+        try:
+            return PoolSpotOffer.objects.get(organization=self.organization, pool_spot=self).delete()
+        except PoolSpotOffer.DoesNotExist:
+            return None
 
     def save(self, *args, **kwargs):
         if self.organization:
