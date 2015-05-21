@@ -69,6 +69,7 @@ def verify_user(request, temporary_code):
         u.temporary_code = None
         u.save()
         context['user'] = u
+        message = {}
         message['subject'] = "whitehousepool.org: Welcome!"
         message['body'] = "Welcome to Pooler at http://whitehousepool.org/, a simple service for handling White House pool seat assignments.\n"
         message['body'] += "* You can log in here: %s/pool/login/\n" % settings.HOST_NAME
