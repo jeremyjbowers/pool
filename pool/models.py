@@ -60,15 +60,17 @@ class Trip(TimeStampedMixin):
     description = models.TextField(blank=True, null=True)
     start_date = models.DateField()
     end_date = models.DateField()
+    foreign = models.BooleanField(default=True)
 
     def __unicode__(self):
         return "%s: %s to %s" % (self.location, self.start_date, self.end_date)
 
     def assign_pool_spots(self):
-        spot_dates = list(rrule(DAILY, dtstart=self.start_date, until=self.end_date))
-        for date in spot_dates:
-            for seat in Seat.objects.all().filter(foreign_eligible=True):
-                obj, created = PoolSpot.objects.update_or_create(seat=seat, date=date)
+        if self.foreign:
+            spot_dates = list(rrule(DAILY, dtstart=self.start_date, until=self.end_date))
+            for date in spot_dates:
+                for seat in Seat.objects.all().filter(foreign_eligible=True):
+                    obj, created = PoolSpot.objects.update_or_create(seat=seat, date=date)
 
     def save(self, *args, **kwargs):
         self.assign_pool_spots()
@@ -80,7 +82,9 @@ class Seat(TimeStampedMixin):
     foreign_eligible = models.BooleanField(default=False)
 
     def __unicode__(self):
-        return "%s seat" % self.name
+        if self.foreign_eligible:
+            return "%s seat (foreign)" % self.name
+        return "%s seat (domestic)" % self.name
 
 
 class Organization(TimeStampedMixin):

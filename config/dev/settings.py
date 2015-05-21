@@ -1,5 +1,7 @@
 import os
 
+LOGIN_URL = '/pool/login/'
+
 HOST_NAME = 'http://127.0.0.1:8000'
 
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.dirname(__file__)))

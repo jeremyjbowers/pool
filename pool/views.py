@@ -6,11 +6,51 @@ from django.http import HttpResponse
 from django.conf import settings
 from django.db import IntegrityError
 from django.db.models import Sum, Count
+from django.contrib.auth import authenticate, login
 from django.contrib.auth.models import User
 from django.template.context_processors import csrf
+from django.contrib.auth.decorators import login_required
 
 from pool import models
 from pool import utils
+
+@login_required
+def foreign_seat_list(request):
+    context = {}
+    context['host_name'] = settings.HOST_NAME
+    context['user'] = models.OrganizationUser.objects.get(user=request.user)
+    context['seats'] = models.Seat.objects.filter(foreign_eligible=True, active=True)
+
+    return render_to_response('pool/foreign_seat_list.html', context) 
+
+@login_required
+def pool_list(request):
+    context = {}
+    context['host_name'] = settings.HOST_NAME
+    context['user'] = models.OrganizationUser.objects.get(user=request.user)
+
+    return render_to_response('pool/pool_list.html', context)
+
+def login_user(request):
+    context = {}
+    context['host_name'] = settings.HOST_NAME
+
+    if request.method == "GET":
+        context.update(csrf(request))
+        return render_to_response('pool/login.html', context)
+
+    if request.method == "POST":
+        username = request.POST.get('username', None)
+        password = request.POST.get('password', None)
+
+        if username and password:
+            user = authenticate(username=username, password=password)
+            if user is not None:
+                if user.is_active:
+                    login(request, user)
+                    return HttpResponse(json.dumps(request.POST))
+
+    return HttpResponse('400 error')
 
 def verify_user(request, temporary_code):
     context = {}
@@ -112,6 +152,8 @@ def create_user(request):
         context.update(csrf(request))
         context['organizations'] = models.Organization.objects.all().values('organization_name', 'id').order_by('organization_name')
         return render_to_response('pool/create_user.html', context)
+
+    return HttpResponse('400 error')
 
 def resolve_seat_offer(request, offer_action, offer_code):
     context = {}

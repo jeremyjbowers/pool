@@ -49,6 +49,8 @@ DATABASES = {
 
 LANGUAGE_CODE = 'en-us'
 
+LOGIN_URL = '/pool/login/'
+
 TIME_ZONE = 'UTC'
 
 USE_I18N = True

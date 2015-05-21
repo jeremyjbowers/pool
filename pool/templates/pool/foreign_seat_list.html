@@ -1,0 +1,25 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="row">
+<div class="col s12">
+    <h1 style="font-weight:400;width:100%;">Seats</h1>
+</div>
+</div>
+
+<div class="row">
+{% for seat in seats %}
+<div class="col s12 m4">
+  <div class="card">
+    <div class="card-content">
+      <span class="card-title black-text">{{ seat.name }} seat</span>
+    </div>
+    <div class="card-action">
+      <a href="/pool/seat/{{ seat.id }}/trips/" class="">Upcoming trips</a>
+    </div>
+  </div>
+</div>
+{% endfor %}
+</div>
+
+{% endblock %}
