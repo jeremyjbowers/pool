@@ -6,13 +6,17 @@ from django.http import HttpResponse
 from django.conf import settings
 from django.db import IntegrityError
 from django.db.models import Sum, Count
-from django.contrib.auth import authenticate, login
+from django.contrib.auth import authenticate, login, logout
 from django.contrib.auth.models import User
 from django.template.context_processors import csrf
 from django.contrib.auth.decorators import login_required
 
 from pool import models
 from pool import utils
+
+def logout_user(request):
+    logout(request)
+    return redirect('/pool/login/')
 
 @login_required
 def foreign_seat_list(request):
@@ -34,6 +38,7 @@ def pool_list(request):
 def login_user(request):
     context = {}
     context['host_name'] = settings.HOST_NAME
+    context['user'] = None
 
     if request.method == "GET":
         context.update(csrf(request))
@@ -55,6 +60,7 @@ def login_user(request):
 def verify_user(request, temporary_code):
     context = {}
     context['host_name'] = settings.HOST_NAME
+    context['user'] = None
 
     try:
         u = models.OrganizationUser.objects.get(temporary_code=temporary_code)
@@ -64,6 +70,7 @@ def verify_user(request, temporary_code):
         context['user'] = u
         return render_to_response('pool/verify_user_success.html', context)
     except models.OrganizationUser.DoesNotExist:
+
         context['error'] = "Whoops, we can't find a user that matches this key.<br/>Email <a href='mailto:jeremy.bowers@nytimes.com'>the admin</a> for help."
         return render_to_response('pool/verify_user_fail.html', context)
 
@@ -71,6 +78,7 @@ def verify_user(request, temporary_code):
 def create_user(request):
     context = {}
     context['host_name'] = settings.HOST_NAME
+    context['user'] = None
 
     if request.method == "POST":
 
@@ -158,6 +166,7 @@ def create_user(request):
 def resolve_seat_offer(request, offer_action, offer_code):
     context = {}
     context['host_name'] = settings.HOST_NAME
+    context['user'] = None
 
     try:
         offer = models.PoolSpotOffer.objects.get(offer_code=offer_code)
