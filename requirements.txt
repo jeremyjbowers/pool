@@ -1,6 +1,7 @@
 Django==1.8
 ecdsa==0.13
 Fabric==1.10.1
+ftfy==4.0.0
 gnureadline==6.3.3
 httplib2==0.9.1
 ipython==3.1.0

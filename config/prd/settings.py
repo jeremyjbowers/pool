@@ -1,6 +1,6 @@
 import os
 
-HOST_NAME = 'http://127.0.0.1:8000'
+HOST_NAME = 'https://www.whitehousepool.org'
 
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.dirname(__file__)))
 
@@ -65,14 +65,10 @@ STATICFILES_FINDERS = (
     'django.contrib.staticfiles.finders.FileSystemFinder',
 )
 
-STATICFILES_FINDERS = (
-    'django.contrib.staticfiles.finders.AppDirectoriesFinder',
-    'django.contrib.staticfiles.finders.FileSystemFinder',
-)
-
 TEMPLATE_CONTEXT_PROCESSORS = (
     'django.contrib.auth.context_processors.auth',
     'django.core.context_processors.request',
+    'django.template.context_processors.csrf',
 )
 
 TEMPLATE_LOADERS = (

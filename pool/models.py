@@ -26,6 +26,12 @@ ORGANIZATION_TYPE_CHOICES = (
     ('x', 'It\'s complicated'),
 )
 
+
+class ActiveUserManager(models.Manager):
+    def get_queryset(self):
+        return super(ActiveUserManager, self).get_queryset().filter(active=True, verified=True)
+
+
 class ActiveObjectsManager(models.Manager):
     def get_queryset(self):
         return super(ActiveObjectsManager, self).get_queryset().filter(active=True)
@@ -35,6 +41,7 @@ class TimeStampedMixin(models.Model):
     created = models.DateTimeField(auto_now_add=True)
     updated = models.DateTimeField(auto_now=True)
     active = models.BooleanField(default=True)
+
     objects = models.Manager()
     active_objects = ActiveObjectsManager()
 
@@ -97,6 +104,10 @@ class OrganizationUser(TimeStampedMixin):
     phone_number = models.CharField(max_length=255, blank=True, null=True)
     dirty_phone = models.BooleanField(default=False)
     preferred_contact = models.CharField(choices=ORGANIZATION_CONTACT_CHOICES, max_length=255, default="e", null=True)
+    temporary_code = models.CharField(max_length=255, blank=True, null=True)
+    verified = models.BooleanField(default=False)
+
+    active_users = ActiveUserManager()
 
     def __unicode__(self):
         return self.get_full_name()
@@ -104,9 +115,21 @@ class OrganizationUser(TimeStampedMixin):
     def get_full_name(self):
         return self.user.get_full_name()
 
+    def set_temporary_code(self):
+        if not self.temporary_code:
+            self.temporary_code = str(uuid.uuid4())
+
     def save(self, *args, **kwargs):
+
+        # handle dirty phone numbers by defaulting to email
         if self.dirty_phone and self.preferred_contact == "t":
             self.preferred_contact = "e"
+
+        # if you are unverified, assign a temporary code we
+        # can use to verify you.
+        if not self.verified and not self.temporary_code:
+            self.set_temporary_code()
+
         super(OrganizationUser, self).save(*args, **kwargs)
 
 class PoolSpot(TimeStampedMixin):
