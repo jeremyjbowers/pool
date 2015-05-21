@@ -48,7 +48,7 @@ def login_user(request):
             if user is not None:
                 if user.is_active:
                     login(request, user)
-                    return HttpResponse(json.dumps(request.POST))
+                    return redirect('/pool/')
 
     return HttpResponse('400 error')
 
