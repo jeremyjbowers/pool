@@ -55,7 +55,7 @@ def make_virtualenv():
 
 @api.task
 def wsgi():
-    api.run('touch /home/ubuntu/apps/%s/config/stg/app.py' % PROJECT_NAME)
+    api.run('touch /home/ubuntu/apps/%s/config/%s/app.py' % (PROJECT_NAME, env.settings))
 
 @api.task
 def pull():
