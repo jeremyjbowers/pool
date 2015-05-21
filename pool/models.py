@@ -95,11 +95,19 @@ class OrganizationUser(TimeStampedMixin):
     organization = models.ForeignKey(Organization)
     user = models.OneToOneField(User)
     phone_number = models.CharField(max_length=255, blank=True, null=True)
+    dirty_phone = models.BooleanField(default=False)
     preferred_contact = models.CharField(choices=ORGANIZATION_CONTACT_CHOICES, max_length=255, default="e", null=True)
 
     def __unicode__(self):
         return self.get_full_name()
 
+    def get_full_name(self):
+        return self.user.get_full_name()
+
+    def save(self, *args, **kwargs):
+        if self.dirty_phone and self.preferred_contact == "t":
+            self.preferred_contact = "e"
+        super(OrganizationUser, self).save(*args, **kwargs)
 
 class PoolSpot(TimeStampedMixin):
     seat = models.ForeignKey(Seat, null=True)

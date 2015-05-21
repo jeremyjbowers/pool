@@ -1,51 +1,81 @@
 {% extends "base.html" %}
 
 {% block content %}
+<form id="create-form" action="." method="post">
+{% csrf_token %}
+
 <div class="row">
 <div class="col s12">
-    <h1 style="font-weight:600;width:100%;">Create User</h1>
+    <h1 style="font-weight:400;width:100%;">Create an account</h1>
 </div>
 </div>
 
 <div class="row">
-<div class="input-field col s12">
-  <input value="" id="username" type="text" class="validate">
-  <label class="active" for="username">User Name</label>
+<div class="col s12">
+    <h4 style="font-weight:200;width:100%;">Who are you?</h4>
 </div>
-<div class="input-field col s12">
-  <input value="" id="email" type="text" class="validate">
-  <label class="active" for="email">Email</label>
+<div class="input-field col s6">
+  <input value="" name="first_name" type="text">
+  <label class="active" for="first_name">First name</label>
 </div>
-<div class="input-field col s12">
-  <input value="" id="password" type="password" class="validate">
+<div class="input-field col s6">
+  <input value="" name="last_name" type="text">
+  <label class="active" for="last_name">Last name</label>
+</div>
+<div class="input-field col s6">
+  <input value="" name="phone_number" type="text">
+  <label class="active" for="phone_number">Phone number</label>
+</div>
+<div class="input-field col s6">
+  <input value="" name="email_address" type="email">
+  <label class="active" for="email">Email address</label>
+</div>
+<div class="col s6">
+    <label>Company</label>
+    <select class="browser-default" name="organization_id">
+      <option value="" disabled selected></option>
+      {% for o in organizations %}
+      <option value="{{ o.id }}">{{ o.organization_name }}</option>
+      {% endfor %}
+    </select>
+</div>
+<div class="col s6">
+    <label>Contact preference?</label>
+    <select class="browser-default" name="preferred_contact">
+      <option value="t">Text</option>
+      <option value="e" selected>Email</option>
+    </select>
+</div>
+</div>
+
+<div class="row">
+<div class="col s12">
+    <h4 style="font-weight:200;width:100%;">How do you want to log in?</h4>
+</div>
+<div class="input-field col s6">
+  <input value="" name="username" type="text">
+  <label class="active" for="username">Username</label>
+</div>
+<div class="input-field col s6">
+  <input value="" name="password" type="password">
   <label class="active" for="password">Password</label>
 </div>
 </div>
 
 <div class="row">
-<div class="input-field col s12">
-  <input value="" id="first_name" type="text" class="validate">
-  <label class="active" for="first_name">First Name</label>
-</div>
-<div class="input-field col s12">
-  <input value="" id="last_name" type="text" class="validate">
-  <label class="active" for="last_name">Last Name</label>
-</div>
-<div class="input-field col s12">
-  <input value="" id="phone_number" type="text" class="validate">
-  <label class="active" for="phone_number">Phone Number</label>
+<div class="col s12">
+    <button class="btn waves-effect waves-light" type="submit" name="action">Submit
+        <i class="mdi-content-send right"></i>
+    </button>
 </div>
 </div>
+</form>
+{% endblock %}
 
-<div class="row">
-  <div class="col s6">
-    <label>Browser Select</label>
-    <select class="browser-default">
-      <option value="" disabled selected>Choose your option</option>
-      {% for o in organizations %}
-      <option value="{{ o.id }}">{{ o.organization_name }}</option>
-      {% endfor %}
-    </select>
-  </div>
-</div>
+{% block extrascript %}
+<script>
+$(function(){
+    window.submit_form = function() { $('#create-form').submit(); }
+});
+</script>
 {% endblock %}

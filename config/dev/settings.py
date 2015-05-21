@@ -68,6 +68,7 @@ STATICFILES_FINDERS = (
 TEMPLATE_CONTEXT_PROCESSORS = (
     'django.contrib.auth.context_processors.auth',
     'django.core.context_processors.request',
+    'django.template.context_processors.csrf',
 )
 
 TEMPLATE_LOADERS = (

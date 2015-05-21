@@ -5,6 +5,15 @@ def increment_seat_order(idx, seat_pool):
         next_organization = seat_pool[0]
     return next_organization
 
+def format_phone_number(possible_phone_number):
+    phone = possible_phone_number
+    phone = phone.replace('-','').replace(' ', '').replace('(', '').replace(')', '').replace('.', '')
+    try:
+        int(phone)
+        return (phone, False)
+    except ValueError:
+        return (possible_phone_number, True)
+
 def send_text(obj, message):
     client = TwilioRestClient(
         os.environ.get('POOL_TWILIO_ACCOUNT_SID', None),
