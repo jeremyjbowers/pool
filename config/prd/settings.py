@@ -1,10 +1,13 @@
 import os
 
+LOGIN_URL = '/pool/login/'
+
 HOST_NAME = 'https://www.whitehousepool.org'
 
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.dirname(__file__)))
 
 SECRET_KEY = 'qx7au(^_!muzu3eb1j1)v5)26du#!i#i2))7&yc_&5z^-(oo@8'
+SHARED_SECRET = os.environ.get('POOL_SHARED_SECRET', None)
 
 DEBUG = True
 
@@ -48,8 +51,6 @@ DATABASES = {
 }
 
 LANGUAGE_CODE = 'en-us'
-
-LOGIN_URL = '/pool/login/'
 
 TIME_ZONE = 'UTC'
 

@@ -94,77 +94,80 @@ def create_user(request):
     if request.method == "POST":
 
         # must have these params.
-        REQUIRED_PARAMS = ['first_name', 'last_name', 'email_address', 'username', 'phone_number', 'preferred_contact', 'organization_id', 'password']
+        REQUIRED_PARAMS = ['first_name', 'last_name', 'email_address', 'username', 'phone_number', 'preferred_contact', 'organization_id', 'password', 'shared_secret']
         for param in REQUIRED_PARAMS:
             if not request.POST.get(param, None):
                 context['error'] = "Whoops, you're missing a parameter, <strong>%s</strong>, in your request.<br/>Email <a href='mailto:jeremy.bowers@nytimes.com'>the admin</a> for help." % param
                 return render_to_response('pool/create_user_fail.html', context)
 
-        # clean the raw text fields
-        first_name = utils.clean_unicode(request.POST['first_name'])
-        last_name = utils.clean_unicode(request.POST['last_name'])
-        phone_number, dirty = utils.format_phone_number(request.POST['phone_number'])
-        email_address = utils.clean_unicode(request.POST['email_address'])
-        username = utils.clean_unicode(request.POST['username'])
-        password = utils.clean_unicode(request.POST['password'])
+        # Make sure this is sent to people when they register.
+        if request.POST['shared_secret'].strip() == settings.SHARED_SECRET:
 
-        # check username duplication
-        if User.objects.filter(username=username).count() > 0:
-            context['error'] = "Whoops, the username <strong>%s</strong> already exists.<br/>Email <a href='mailto:jeremy.bowers@nytimes.com'>the admin</a> for help." % username
-            return render_to_response('pool/create_user_fail.html', context)
+            # clean the raw text fields
+            first_name = utils.clean_unicode(request.POST['first_name'])
+            last_name = utils.clean_unicode(request.POST['last_name'])
+            phone_number, dirty = utils.format_phone_number(request.POST['phone_number'])
+            email_address = utils.clean_unicode(request.POST['email_address'])
+            username = utils.clean_unicode(request.POST['username'])
+            password = utils.clean_unicode(request.POST['password'])
 
-        # check email duplication
-        if User.objects.filter(email=email_address).count() > 0:
-            context['error'] = "Whoops, someone with the email address <strong>%s</strong> already exists.<br/>Email <a href='mailto:jeremy.bowers@nytimes.com'>the admin</a> for help." % email_address
-            return render_to_response('pool/create_user_fail.html', context)
+            # check username duplication
+            if User.objects.filter(username=username).count() > 0:
+                context['error'] = "Whoops, the username <strong>%s</strong> already exists.<br/>Email <a href='mailto:jeremy.bowers@nytimes.com'>the admin</a> for help." % username
+                return render_to_response('pool/create_user_fail.html', context)
 
-        # check phone duplication
-        if models.OrganizationUser.objects.filter(phone_number=phone_number).count() > 0:
-            context['error'] = "Whoops, someone with the phone number <strong>%s</strong> already exists.<br/>Email <a href='mailto:jeremy.bowers@nytimes.com'>the admin</a> for help." % phone_number
-            return render_to_response('pool/create_user_fail.html', context)
+            # check email duplication
+            if User.objects.filter(email=email_address).count() > 0:
+                context['error'] = "Whoops, someone with the email address <strong>%s</strong> already exists.<br/>Email <a href='mailto:jeremy.bowers@nytimes.com'>the admin</a> for help." % email_address
+                return render_to_response('pool/create_user_fail.html', context)
 
-        # lookup the organization
-        organization = models.Organization.objects.get(id=request.POST['organization_id'])
-        context['organization'] = organization
+            # check phone duplication
+            if models.OrganizationUser.objects.filter(phone_number=phone_number).count() > 0:
+                context['error'] = "Whoops, someone with the phone number <strong>%s</strong> already exists.<br/>Email <a href='mailto:jeremy.bowers@nytimes.com'>the admin</a> for help." % phone_number
+                return render_to_response('pool/create_user_fail.html', context)
 
-        # try to create the user account first
-        try:
-            user = User.objects.create_user(username, email_address, password)
-            user.first_name = first_name
-            user.last_name = last_name
-            user.save()
-            context['user'] = user
+            # lookup the organization
+            organization = models.Organization.objects.get(id=request.POST['organization_id'])
+            context['organization'] = organization
 
-        except IntegrityError:
+            # try to create the user account first
+            try:
+                user = User.objects.create_user(username, email_address, password)
+                user.first_name = first_name
+                user.last_name = last_name
+                user.save()
+                context['user'] = user
 
-            # this should be the "already exists" flow
-            context['error'] = "Whoops, your user account already exists.<br/>Should we get you a new password?"
-            return render_to_response('pool/create_user_fail.html', context)
+            except IntegrityError:
 
-        # then try and create the organization_user
-        try:
-            organization_user = models.OrganizationUser(user=user,
-                                                    organization=organization,
-                                                    phone_number=phone_number,
-                                                    dirty_phone=dirty,
-                                                    preferred_contact=request.POST['preferred_contact'])
-            organization_user.save()
-            context['organization_user'] = organization_user
+                # this should be the "already exists" flow
+                context['error'] = "Whoops, your user account already exists.<br/>Should we get you a new password?"
+                return render_to_response('pool/create_user_fail.html', context)
 
-        except IntegrityError:
+            # then try and create the organization_user
+            try:
+                organization_user = models.OrganizationUser(user=user,
+                                                        organization=organization,
+                                                        phone_number=phone_number,
+                                                        dirty_phone=dirty,
+                                                        preferred_contact=request.POST['preferred_contact'])
+                organization_user.save()
+                context['organization_user'] = organization_user
 
-            # this should be the "already exists" flow
-            context['error'] = "Whoops, your user account already exists.<br/>Should we get you a new password?"
-            return render_to_response('pool/create_user_fail.html', context)
+            except IntegrityError:
 
-        # it worked so return something nice.
-        message = {}
-        message['subject'] = "whitehousepool.org: Verify your email"
-        message['body'] = "Someone registered an account with http://whitehousepool.org/ from this account\n"
-        message['body'] += "If this was you, please click this link to verify your account.\n"
-        message['body'] += "%s/pool/user/verify/%s/" % (settings.HOST_NAME, organization_user.temporary_code)
-        utils.send_email(organization_user, message)
-        return render_to_response('pool/create_user_success.html', context)
+                # this should be the "already exists" flow
+                context['error'] = "Whoops, your user account already exists.<br/>Should we get you a new password?"
+                return render_to_response('pool/create_user_fail.html', context)
+
+            # it worked so return something nice.
+            message = {}
+            message['subject'] = "whitehousepool.org: Verify your email"
+            message['body'] = "Someone registered an account with http://whitehousepool.org/ from this account\n"
+            message['body'] += "If this was you, please click this link to verify your account.\n"
+            message['body'] += "%s/pool/user/verify/%s/" % (settings.HOST_NAME, organization_user.temporary_code)
+            utils.send_email(organization_user, message)
+            return render_to_response('pool/create_user_success.html', context)
 
     if request.method == "GET":
         context.update(csrf(request))

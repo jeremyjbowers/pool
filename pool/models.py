@@ -114,6 +114,9 @@ class OrganizationUser(TimeStampedMixin):
     def get_full_name(self):
         return self.user.get_full_name()
 
+    def get_email(self):
+        return self.user.email
+
     def set_temporary_code(self):
         if not self.temporary_code:
             self.temporary_code = str(uuid.uuid4())
