@@ -1,0 +1,14 @@
+{% extends "base.html" %}
+
+{% block content %}
+
+<div class="row">
+<div class="col s12">
+    <h1 style="font-weight:400;width:100%;">Thanks, {{ user.user.first_name }}</h1>
+    <p>The <strong>{{ offer.pool_spot.seat }}</strong> for <strong>{{ offer.trip }}</strong> on <strong>{{ offer.date }}</strong> was accepted by <strong>{{ offer.resolving_user }}</strong>.</p>
+    <p><a href="/pool/offer/calendar/{{ offer.offer_code }}/event.ics">Import to your calendar.</a></p>
+    <p>Is this wrong? <a href="mailto:jeremy.bowers@nytimes.com">Contect the admin.</a>
+</div>
+</div>
+
+{% endblock %}

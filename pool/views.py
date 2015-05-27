@@ -1,3 +1,4 @@
+import datetime
 import json
 
 from django.views.generic import ListView, DetailView
@@ -10,6 +11,7 @@ from django.contrib.auth import authenticate, login, logout
 from django.contrib.auth.models import User
 from django.template.context_processors import csrf
 from django.contrib.auth.decorators import login_required
+from ics import Calendar, Event
 
 from pool import models
 from pool import utils
@@ -23,7 +25,7 @@ def foreign_detail(request):
     context = {}
     context['host_name'] = settings.HOST_NAME
     context['user'] = models.OrganizationUser.objects.get(user=request.user)
-    context['seats'] = models.Seat.objects.filter(foreign_eligible=True, active=True)
+    context['seats'] = models.Seat.objects.filter(foreign_eligible=True, active=True).order_by('priority')
     context['trips'] = models.Trip.objects.filter(foreign=True)
 
     return render_to_response('pool/foreign_seat_list.html', context) 
@@ -171,30 +173,84 @@ def create_user(request):
 
     return HttpResponse('400 error')
 
+def calendar_entry(request, offer_code):
+    try:
+        offer = models.PoolSpotOffer.objects.get(offer_code=offer_code)
+
+        if offer.pool_spot:
+            c = Calendar()
+            e = Event()
+            e.name = "%s: trip to %s" % (offer.pool_spot.seat, offer.pool_spot.trip.location)
+            e.description = "%s accepted by %s for the %s trip, %s through %s." % (
+                    offer.pool_spot.seat,
+                    offer.resolving_user,
+                    offer.pool_spot.trip.location,
+                    offer.pool_spot.trip.start_date,
+                    offer.pool_spot.trip.end_date)
+            e.begin = offer.date.isoformat()
+            e.make_all_day()
+            c.events.append(e)
+            return HttpResponse(str(c), content_type="text/calendar")
+
+            # For debuggging the ICS file.
+            # return HttpResponse(str(c))
+
+        else:
+            return HttpResponse('400 error')
+    except models.PoolSpotOffer.DoesNotExist:
+        return HttpResponse('400 error')
+
 def resolve_seat_offer(request, offer_action, offer_code):
     context = {}
     context['host_name'] = settings.HOST_NAME
     context['user'] = None
 
-    try:
-        offer = models.PoolSpotOffer.objects.get(offer_code=offer_code)
-        if offer_action == "accept":
-            offer.pool_spot.organization = offer.organization
-            offer.pool_spot.save()
-            message = '%s<br/>You have accepted the pool spot for the %s seat on %s.' % (
-                offer.organization.organization_name,
-                offer.pool_spot.seat.name,
-                offer.pool_spot.date
-            )
-        if offer_action == "decline":
-            offer.delete()
-            message = '%s<br/>You have declined the pool spot for the %s seat on %s.' % (
-                offer.organization.organization_name,
-                offer.pool_spot.seat.name,
-                offer.pool_spot.date
-            )
+    # There must be a user ID associated with this request.
+    # Guessing both a user ID and an offer code would be hard.
+    # Vulnerable only to users who did receive the email
+    # changing to a different user.
+    if request.GET.get('ou', None):
 
-        return HttpResponse(message)
+        # Find the organization user matching this Id.
+        try:
+            context['user'] = models.OrganizationUser.objects.get(id=request.GET['ou'])
 
-    except models.PoolSpotOffer.DoesNotExist:
-        return HttpResponse("A seat matching your query does not exist.<br/>Email <a href='mailto:jeremy.bowers@nytimes.com'>the admin</a> for help.")
+        except models.OrganizationUser.DoesNotExist:
+            return HttpResponse('400 error')
+
+    # Only do things if we find the user.
+    if context['user']:
+        try:
+
+            # Find the offer.
+            offer = models.PoolSpotOffer.objects.get(offer_code=offer_code)
+
+            if offer_action == "accept" or offer.pool_spot:
+                if not offer.pool_spot:
+                    offer.pool_spot.organization = offer.organization
+                    offer.pool_spot.save()
+
+                template_path = 'pool/offer_accept.html'
+            else:
+                if offer_action == "decline":
+                    template_path = 'pool/offer_decline.html'
+                else:
+                    return HttpResponse('400 error')
+
+            # Resolve the offer.
+            offer.resolving_user = context['user']
+
+            if offer.active:
+                offer.active = False
+                offer.save()
+
+            context['offer'] = offer
+            return render_to_response(template_path, context)
+
+        except models.PoolSpotOffer.DoesNotExist:
+            return HttpResponse('400 error')
+
+    else:
+        # If there's no user, fail.
+        return HttpResponse('400 error')
+

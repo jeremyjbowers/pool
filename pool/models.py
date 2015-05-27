@@ -7,8 +7,6 @@ from django.contrib.auth.models import User
 from django.core import serializers
 from django.db import models
 from django.conf import settings
-import requests
-from twilio.rest import TwilioRestClient
 
 from pool import utils
 
@@ -98,13 +96,6 @@ class Organization(TimeStampedMixin):
     def __unicode__(self):
         return self.organization_name
 
-    def send_message(self, message):
-        if self.preferred_contact == 'e':
-            utils.send_email(self, message)
-
-        if self.preferred_contact == 't':
-            utils.send_text(self, message)
-
 
 class OrganizationUser(TimeStampedMixin):
     organization = models.ForeignKey(Organization)
@@ -126,6 +117,19 @@ class OrganizationUser(TimeStampedMixin):
     def set_temporary_code(self):
         if not self.temporary_code:
             self.temporary_code = str(uuid.uuid4())
+
+    def get_accept_url(self, offer_code):
+        return '%s/pool/offer/seat/accept/%s/?ou=%s' % (settings.HOST_NAME, offer_code, self.id)
+
+    def get_decline_url(self, offer_code):
+        return '%s/pool/offer/seat/decline/%s/?ou=%s' % (settings.HOST_NAME, offer_code, self.id)
+
+    def send_message(self, message):
+        if self.preferred_contact == 'e':
+            utils.send_email(self, message)
+
+        if self.preferred_contact == 't':
+            utils.send_text(self, message)
 
     def save(self, *args, **kwargs):
 
@@ -162,7 +166,9 @@ class PoolSpot(TimeStampedMixin):
 
     def remove_accepted_pool_spot(self):
         try:
-            return PoolSpotOffer.objects.get(organization=self.organization, pool_spot=self).delete()
+            p = PoolSpotOffer.objects.get(organization=self.organization, pool_spot=self)
+            p.active = False
+            p.save()
         except PoolSpotOffer.DoesNotExist:
             return None
 
@@ -177,9 +183,10 @@ class PoolSpotOffer(TimeStampedMixin):
     date = models.DateField(null=True)
     organization = models.ForeignKey(Organization)
     offer_code = models.CharField(max_length=255, blank=True)
+    resolving_user = models.ForeignKey(OrganizationUser, null=True, blank=True)
 
     class Meta:
-        unique_together = [('organization', 'date')]
+        unique_together = [('organization', 'date', 'active')]
 
     def __unicode__(self):
         return "%s offered to %s" % (self.pool_spot, self.organization)
@@ -194,22 +201,18 @@ class PoolSpotOffer(TimeStampedMixin):
         if not self.offer_code:
             self.offer_code = str(uuid.uuid4())
 
-    def get_accept_url(self):
-        return '%s/pool/offer/seat/accept/%s/' % (settings.HOST_NAME, self.offer_code)
-
-    def get_decline_url(self):
-        return '%s/pool/offer/seat/decline/%s/' % (settings.HOST_NAME, self.offer_code)
-
     def make_offer(self):
-        message = {}
-        message['subject'] = 'Action required: %s pool spot on %s' % (self.pool_spot.seat, self.pool_spot.date)
-        message['body'] = 'The %s on %s is available.\n\nAccept: %s\n\nDecline: %s' % (
-            self.pool_spot.seat,
-            self.pool_spot.date,
-            self.get_accept_url(),
-            self.get_decline_url()
-        )
-        self.organization.send_message(message)
+        users = OrganizationUser.objects.filter(organization=self.organization)
+        for user in users:
+            message = {}
+            message['subject'] = 'Pool seat offer: %s on %s' % (self.pool_spot.seat, self.pool_spot.date)
+            message['body'] = 'The %s on %s is available.\n\nAccept: %s\n\nDecline: %s' % (
+                self.pool_spot.seat,
+                self.pool_spot.date,
+                user.get_accept_url(self.offer_code),
+                user.get_decline_url(self.offer_code)
+            )
+            user.send_message(message)
 
 
 class SeatRotation(TimeStampedMixin):

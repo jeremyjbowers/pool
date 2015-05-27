@@ -9,15 +9,15 @@ class Command(BaseCommand):
 
 
     def handle(self, *args, **options):
-        for seat in models.Seat.objects.filter(foreign_eligible=True):
-            pool_spots = models.PoolSpot.objects.filter(seat=seat, organization__isnull=True, date=date).order_by('date')
+        for seat in models.Seat.objects.filter(foreign_eligible=True).order_by('priority'):
+            pool_spots = models.PoolSpot.objects.filter(seat=seat, organization__isnull=True).order_by('date')
 
             if pool_spots.count() > 0:
                 pool_spot = pool_spots[0]
 
                 rotation = models.SeatRotation.objects.get(seat=seat)
                 next_organization, idx, seat_pool = rotation.get_next_organization()
-                p = models.PoolSpotOffer(pool_spot=pool_spot, organization=next_organization.organization)
+                p = models.PoolSpotOffer(pool_spot=pool_spot, organization=next_organization.organization, active=True)
                 p.set_offer_code()
 
                 try:

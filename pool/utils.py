@@ -2,6 +2,7 @@ import os
 
 import ftfy
 import requests
+from twilio.rest import TwilioRestClient
 
 def increment_seat_order(idx, seat_pool):
     try:
