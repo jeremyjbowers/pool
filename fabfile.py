@@ -112,4 +112,4 @@ def loaddb():
 
 @api.task
 def deploy_static_site():
-    contrib.project.rsync_project(remote_path="/var/www/whitehousepool.org/", local_path="%s/pool/static/whitehousepool.org/" % settings.BASE_DIR)
+    contrib.project.rsync_project(remote_dir="/var/www/whitehousepool.org/", local_dir="%s/pool/static/whitehousepool.org/" % settings.BASE_DIR)
