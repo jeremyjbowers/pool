@@ -2,6 +2,7 @@ import datetime
 import json
 import os
 
+from django.conf import settings
 from fabric import api, operations, contrib
 from fabric.state import env
 
@@ -108,3 +109,7 @@ def loaddb():
         api.local('dropdb pool')
         api.local('createdb pool')
         api.local('psql pool < /tmp/pool-snapshot.sql')
+
+@api.task
+def deploy_index():
+    operations.put('%s/pool/static/pool/index.html' % settings.BASE_DIR, '/var/www/whitehousepool.org/index.html')
