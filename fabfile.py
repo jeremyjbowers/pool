@@ -111,5 +111,5 @@ def loaddb():
         api.local('psql pool < /tmp/pool-snapshot.sql')
 
 @api.task
-def deploy_index():
-    operations.put('%s/pool/static/pool/index.html' % settings.BASE_DIR, '/var/www/whitehousepool.org/index.html')
+def deploy_static_site():
+    contrib.project.rsync_project(remote_path="/var/www/whitehousepool.org/", local_path="%s/pool/static/whitehousepool.org/" % settings.BASE_DIR)
