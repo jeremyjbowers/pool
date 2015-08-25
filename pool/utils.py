@@ -6,10 +6,9 @@ from twilio.rest import TwilioRestClient
 
 def increment_seat_order(idx, seat_pool):
     try:
-        next_organization = seat_pool[idx+1]
+        return seat_pool[idx+1]
     except IndexError:
-        next_organization = seat_pool[0]
-    return next_organization
+        return seat_pool[0]
 
 def clean_unicode(possible_string):
     if isinstance(possible_string, basestring):

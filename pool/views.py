@@ -78,7 +78,7 @@ def verify_user(request, temporary_code):
         message['body'] += "* Frequently-asked questions about Pooler: %s/pool/faq/\n" % settings.HOST_NAME
         message['body'] += "If you have questions, email jeremy.bowers@nytimes.com or michael.shear@nytimes.com.\n\n"
         message['body'] += "Thanks, and welcome!"
-        utils.send_email(organization_user, message)
+        utils.send_email(u, message)
         return render_to_response('pool/verify_user_success.html', context)
     except models.OrganizationUser.DoesNotExist:
 
@@ -166,8 +166,13 @@ def create_user(request):
             message['body'] = "Someone registered an account with http://whitehousepool.org/ from this account\n"
             message['body'] += "If this was you, please click this link to verify your account.\n"
             message['body'] += "%s/pool/user/verify/%s/" % (settings.HOST_NAME, organization_user.temporary_code)
-            utils.send_email(organization_user, message)
-            return render_to_response('pool/create_user_success.html', context)
+
+            if not request.POST.get('test', None):
+                utils.send_email(organization_user, message)
+                return render_to_response('pool/create_user_success.html', context)
+
+            else:
+                return HttpResponse(message['body'])
 
     if request.method == "GET":
         context.update(csrf(request))
@@ -228,17 +233,20 @@ def resolve_seat_offer(request, offer_action, offer_code):
             # Find the offer.
             offer = models.PoolSpotOffer.objects.get(offer_code=offer_code)
 
-            if offer_action == "accept" or offer.pool_spot:
+            # If someone is accepting the offer and we can
+            # find the offer, continue.
+            if offer_action == "accept":
                 if not offer.pool_spot:
                     offer.pool_spot.organization = offer.organization
                     offer.pool_spot.save()
 
                 template_path = 'pool/offer_accept.html'
+
+            elif offer_action == "decline":
+                template_path = 'pool/offer_decline.html'
+            
             else:
-                if offer_action == "decline":
-                    template_path = 'pool/offer_decline.html'
-                else:
-                    return HttpResponse('400 error')
+                return HttpResponse('400 error')
 
             # Resolve the offer.
             offer.resolving_user = context['user']
