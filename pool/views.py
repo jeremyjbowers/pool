@@ -244,7 +244,7 @@ def resolve_seat_offer(request, offer_action, offer_code):
 
             elif offer_action == "decline":
                 template_path = 'pool/offer_decline.html'
-            
+
             else:
                 return HttpResponse('400 error')
 

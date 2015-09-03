@@ -71,7 +71,7 @@ class Trip(TimeStampedMixin):
             spot_dates = list(rrule(DAILY, dtstart=self.start_date, until=self.end_date))
             for date in spot_dates:
                 for seat in Seat.objects.all().filter(foreign_eligible=True):
-                    obj, created = PoolSpot.objects.update_or_create(seat=seat, date=date, trip=self)
+                    obj, created = PoolSpot.objects.update_or_create(seat=seat, date=date, trip=self, active=True)
 
     def save(self, *args, **kwargs):
         super(Trip, self).save(*args, **kwargs)
@@ -80,13 +80,13 @@ class Trip(TimeStampedMixin):
 
 class Seat(TimeStampedMixin):
     name = models.CharField(max_length=255, null=True, blank=True)
-    foreign_eligible = models.BooleanField(default=False)
+    foreign = models.BooleanField(default=False)
     priority = models.IntegerField(default=99)
 
     def __unicode__(self):
-        if self.foreign_eligible:
-            return "%s seat (foreign)" % self.name
-        return "%s seat (domestic)" % self.name
+        if self.foreign:
+            return "%s (foreign)" % self.name
+        return "%s (domestic)" % self.name
 
 
 class Organization(TimeStampedMixin):
@@ -162,10 +162,15 @@ class PoolSpot(TimeStampedMixin):
         return "%s on %s" % (self.seat, self.date)
 
     def offer(self):
-        p = PoolSpotOffer.objects.filter(pool_spot=self)
+        p = PoolSpotOffer.objects.filter(pool_spot=self, active=True)
         if p.count() > 0:
             return p[0]
         return None
+
+    def has_outstanding_offer(self):
+        if self.offer():
+            return True
+        return False
 
     def remove_accepted_pool_spot(self):
         try:
@@ -182,7 +187,7 @@ class PoolSpot(TimeStampedMixin):
 
 
 class PoolSpotOffer(TimeStampedMixin):
-    pool_spot = models.OneToOneField(PoolSpot)
+    pool_spot = models.ForeignKey(PoolSpot)
     date = models.DateField(null=True)
     organization = models.ForeignKey(Organization)
     offer_code = models.CharField(max_length=255, blank=True)
