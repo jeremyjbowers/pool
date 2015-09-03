@@ -7,7 +7,6 @@ from pool import utils
 class Command(BaseCommand):
     help = 'Generates offers for outstanding seats.'
 
-
     def handle(self, *args, **options):
 
         # Build a list of all active trips. We'll deal with them in order of their start_date.
